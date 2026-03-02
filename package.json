@@ -1,0 +1,17 @@
+{
+  "name": "whatsapp-drive-bot",
+  "version": "1.0.0",
+  "description": "בוט ווטסאפ שמעלה תמונות וסרטונים לגוגל דרייב - לשכת ראש העיר צפת",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "auth": "node auth.js"
+  },
+  "dependencies": {
+    "googleapis": "^144.0.0",
+    "mime-types": "^2.1.35",
+    "open": "^8.4.2",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  }
+}
