@@ -1,5 +1,5 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+const qrcode = require('qrcode');
 const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
@@ -59,9 +59,17 @@ const client = new Client({
   },
 });
 
-client.on('qr', (qr) => {
-  console.log('📱 סרוק את הקוד:');
-  qrcode.generate(qr, { small: true });
+client.on('qr', async (qr) => {
+  try {
+    console.log('📱 מייצר QR כתמונה ומעלה לדרייב...');
+    const qrPath = path.join(TEMP_DIR, 'qr-login.png');
+    await qrcode.toFile(qrPath, qr, { type: 'png', width: 400 });
+    await uploadFile(qrPath, 'qr-login.png', 'image/png');
+    fs.unlinkSync(qrPath);
+    console.log('✅ QR הועלה לדרייב! פתח את הקובץ qr-login.png בתיקייה וסרוק.');
+  } catch (err) {
+    console.error('❌ שגיאה ביצירת QR:', err.message);
+  }
 });
 
 client.on('ready', () => {
