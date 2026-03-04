@@ -13,18 +13,26 @@ if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR);
 
 // ─── גוגל דרייב ───────────────────────────────────────────
 function getDrive() {
-  const creds = JSON.parse(fs.readFileSync('./credentials.json'));
+  let creds, token;
+
+  if (process.env.GOOGLE_CREDENTIALS) {
+    creds = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    token = JSON.parse(process.env.GOOGLE_TOKEN);
+  } else {
+    creds = JSON.parse(fs.readFileSync('./credentials.json'));
+    token = JSON.parse(fs.readFileSync('./token.json'));
+  }
+
   const { client_id, client_secret, redirect_uris } = creds.installed || creds.web;
   const auth = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
-  auth.setCredentials(JSON.parse(fs.readFileSync('./token.json')));
+  auth.setCredentials(token);
   return google.drive({ version: 'v3', auth });
 }
 
 async function uploadFile(filePath, fileName, mimeType) {
   const drive = getDrive();
-  const today = new Date().toISOString().split('T')[0]; // פורמט: 2026-03-02
+  const today = new Date().toISOString().split('T')[0];
 
-  // מצא או צור תיקיית תאריך
   let folderId = FOLDER_ID;
   const search = await drive.files.list({
     q: `name='${today}' and mimeType='application/vnd.google-apps.folder' and '${FOLDER_ID}' in parents and trashed=false`,
@@ -66,7 +74,7 @@ client.on('qr', async (qr) => {
     await qrcode.toFile(qrPath, qr, { type: 'png', width: 400 });
     await uploadFile(qrPath, 'qr-login.png', 'image/png');
     fs.unlinkSync(qrPath);
-    console.log('✅ QR הועלה לדרייב! פתח את הקובץ qr-login.png בתיקייה וסרוק.');
+    console.log('✅ QR הועלה לדרייב! פתח את הקובץ qr-login.png וסרוק.');
   } catch (err) {
     console.error('❌ שגיאה ביצירת QR:', err.message);
   }
@@ -87,7 +95,6 @@ client.on('message_create', async (msg) => {
 
     console.log(`📸 תמונה מ: ${chat.name}`);
 
-    console.log('📸 מוריד מדיה...');
     const media = await msg.downloadMedia();
     if (!media) { console.log('❌ לא הצלחתי להוריד מדיה'); return; }
 
