@@ -11,13 +11,12 @@ const TEMP_DIR = './temp_media';
 
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR);
 
-// ─── גוגל דרייב ───────────────────────────────────────────
 function getDrive() {
   let creds, token;
 
   if (process.env.GOOGLE_CREDENTIALS) {
-    creds = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-    token = JSON.parse(process.env.GOOGLE_TOKEN);
+    creds = JSON.parse(Buffer.from(process.env.GOOGLE_CREDENTIALS, 'base64').toString('utf8'));
+    token = JSON.parse(Buffer.from(process.env.GOOGLE_TOKEN, 'base64').toString('utf8'));
   } else {
     creds = JSON.parse(fs.readFileSync('./credentials.json'));
     token = JSON.parse(fs.readFileSync('./token.json'));
@@ -59,7 +58,6 @@ async function uploadFile(filePath, fileName, mimeType) {
   console.log(`✅ הועלה: ${res.data.name}`);
 }
 
-// ─── ווטסאפ ───────────────────────────────────────────────
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
