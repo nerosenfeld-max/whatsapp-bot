@@ -8,36 +8,27 @@ const mime = require('mime-types');
 const FOLDER_ID = '19hJRLQAx4L0_rEdybNkPvnqeEU1J5X8I';
 const GROUP_NAME = 'תיעוד - לשכת ראש העיר';
 const TEMP_DIR = './temp_media';
-
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR);
 
-function getDrive() {
-  let creds, token;
-
-  if (process.env.GOOGLE_CREDENTIALS) {
-    creds = JSON.parse(Buffer.from(process.env.GOOGLE_CREDENTIALS, 'base64').toString('utf8'));
-    token = JSON.parse(Buffer.from(process.env.GOOGLE_TOKEN, 'base64').toString('utf8'));
-  } else {
-    creds = JSON.parse(fs.readFileSync('./credentials.json'));
-    token = JSON.parse(fs.readFileSync('./token.json'));
-  }
-
-  const { client_id, client_secret, redirect_uris } = creds.installed || creds.web;
-  const auth = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
-  auth.setCredentials(token);
+async function getDrive() {
+  const credentials = JSON.parse(
+    Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT, 'base64').toString('utf8')
+  );
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ['https://www.googleapis.com/auth/drive'],
+  });
   return google.drive({ version: 'v3', auth });
 }
 
 async function uploadFile(filePath, fileName, mimeType) {
-  const drive = getDrive();
+  const drive = await getDrive();
   const today = new Date().toISOString().split('T')[0];
-
   let folderId = FOLDER_ID;
   const search = await drive.files.list({
     q: `name='${today}' and mimeType='application/vnd.google-apps.folder' and '${FOLDER_ID}' in parents and trashed=false`,
     fields: 'files(id)',
   });
-
   if (search.data.files.length > 0) {
     folderId = search.data.files[0].id;
   } else {
@@ -48,13 +39,11 @@ async function uploadFile(filePath, fileName, mimeType) {
     folderId = folder.data.id;
     console.log(`📁 נוצרה תיקיה: ${today}`);
   }
-
   const res = await drive.files.create({
     resource: { name: fileName, parents: [folderId] },
     media: { mimeType, body: fs.createReadStream(filePath) },
     fields: 'id, name',
   });
-
   console.log(`✅ הועלה: ${res.data.name}`);
 }
 
@@ -85,27 +74,20 @@ client.on('ready', () => {
 client.on('message_create', async (msg) => {
   try {
     if (!msg.hasMedia) return;
-
     const chat = await msg.getChat().catch(() => null);
     if (!chat) return;
     if (!chat.isGroup) return;
     if (!chat.name.includes(GROUP_NAME)) return;
-
     console.log(`📸 תמונה מ: ${chat.name}`);
-
     const media = await msg.downloadMedia();
     if (!media) { console.log('❌ לא הצלחתי להוריד מדיה'); return; }
-
     const ext = mime.extension(media.mimetype) || 'bin';
     const fileName = `${Date.now()}.${ext}`;
     const filePath = path.join(TEMP_DIR, fileName);
-
     fs.writeFileSync(filePath, Buffer.from(media.data, 'base64'));
     console.log('📤 מעלה לדרייב...');
-
     await uploadFile(filePath, fileName, media.mimetype);
     fs.unlinkSync(filePath);
-
   } catch (err) {
     console.error('❌ שגיאה:', err.message);
   }
@@ -113,5 +95,4 @@ client.on('message_create', async (msg) => {
 
 client.on('auth_failure', () => console.error('❌ אימות נכשל'));
 client.on('disconnected', () => console.log('⚠️ התנתק'));
-
 client.initialize();
